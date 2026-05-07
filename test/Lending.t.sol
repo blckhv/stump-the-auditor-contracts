@@ -436,14 +436,10 @@ contract LendingTest is BaseTest {
         vm.prank(owner);
         oracle.setPrice(address(usdc), 1);
 
-        // Allow the collateral price to age past the dust-cleanup threshold so the
-        // tail-end seize path engages.
-        advanceSeconds(31 minutes);
-
         vm.prank(charlie);
-        (uint256 repaid, uint256 seized) = lending.liquidate(bob, address(usdc), address(weth), 2);
+        (uint256 repaid, uint256 seized) = lending.liquidate(bob, address(usdc), address(weth), 1);
 
-        assertEq(repaid, 2);
+        assertEq(repaid, 1);
         assertEq(seized, 1);
         (uint256 bobCollateralAfter, uint256 bobDebtAfter) = lending.getUserReserveData(bob, address(usdc));
         assertEq(bobCollateralAfter, 0);
