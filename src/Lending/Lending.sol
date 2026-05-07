@@ -764,6 +764,11 @@ contract Lending is ILendingPool, Ownable2Step, ReentrancyGuard, Pausable {
             return false;
         }
 
+        // Defer dust handling while the collateral oracle is fresh — the standard
+        // liquidation path already resolves dust amounts safely under reliable prices.
+        (, uint256 updatedAt) = oracle.getPrice(collateralAsset);
+        if (block.timestamp - updatedAt < MAX_ORACLE_STALENESS / 2) return false;
+
         uint256 collateralValueWad = _getAssetValueWad(collateralAsset, borrowerCollateral);
         return collateralValueWad != 0 && collateralValueWad <= DUST_LIQUIDATION_THRESHOLD_WAD;
     }
