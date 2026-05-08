@@ -703,7 +703,7 @@ contract Lending is ILendingPool, Ownable2Step, ReentrancyGuard, Pausable {
 
         // rounding: liquidation floors both value and scaled-balance conversions so fragmentation cannot over-seize.
         uint256 scaledCollateralTransfer =
-            Math.mulDiv(targetCollateralAmount, RAY, collateralReserve.supplyIndex, Math.Rounding.Floor);
+            Math.mulDiv(targetCollateralAmount, collateralReserve.supplyIndex, RAY, Math.Rounding.Floor);
         if (scaledCollateralTransfer > borrowerScaledCollateral) {
             scaledCollateralTransfer = borrowerScaledCollateral;
         }
@@ -732,7 +732,7 @@ contract Lending is ILendingPool, Ownable2Step, ReentrancyGuard, Pausable {
                 maxCollateralSeize = borrowerCollateral;
             }
             scaledCollateralTransfer =
-                Math.mulDiv(maxCollateralSeize, RAY, collateralReserve.supplyIndex, Math.Rounding.Floor);
+                Math.mulDiv(maxCollateralSeize, collateralReserve.supplyIndex, RAY, Math.Rounding.Floor);
             if (scaledCollateralTransfer > borrowerScaledCollateral) {
                 scaledCollateralTransfer = borrowerScaledCollateral;
             }
