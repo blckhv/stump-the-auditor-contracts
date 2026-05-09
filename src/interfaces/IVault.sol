@@ -13,6 +13,7 @@ interface IVault {
 
     event AssetAdded(address indexed asset, uint8 decimals);
     event AssetRemoved(address indexed asset);
+    event AssetDisabled(address indexed asset);
     event Deposited(
         address indexed user, address indexed asset, uint256 amount, uint256 sharesMinted, address indexed receiver
     );

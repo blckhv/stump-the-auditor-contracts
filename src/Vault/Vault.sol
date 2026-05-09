@@ -176,7 +176,7 @@ contract Vault is IVault, Ownable2Step, ReentrancyGuard, Pausable {
         AssetConfig storage config = _requireWhitelistedAsset(asset);
         _accrueFees(asset);
         _materializeUnboundFeeShares(msg.sender, asset);
-        _requireShareAsset(msg.sender, asset);
+        _requireShareAssetOrDisabled(msg.sender, asset);
 
         WithdrawRequest storage existingRequest = pendingWithdraw[msg.sender];
         if (existingRequest.shares != 0) revert PendingWithdrawExists(msg.sender);
@@ -222,6 +222,7 @@ contract Vault is IVault, Ownable2Step, ReentrancyGuard, Pausable {
         if (request.shares == 0) revert NoPendingWithdraw(msg.sender);
         if (block.number < request.unlockBlock) revert TimelockActive(request.unlockBlock, uint64(block.number));
         _accrueFees(address(0));
+        _requireShareAssetOrDisabled(msg.sender, request.asset);
 
         AssetConfig storage config = assetConfig[request.asset];
         uint256 availableLiquidity = _syncTrackedHoldings(request.asset, config);
@@ -385,6 +386,22 @@ contract Vault is IVault, Ownable2Step, ReentrancyGuard, Pausable {
         _removeAssetFromList(asset);
 
         emit AssetRemoved(asset);
+    }
+
+    /// @notice Soft-disables a whitelisted asset, blocking new deposits and new withdrawal requests denominated in it
+    ///         while leaving its on-chain holdings intact for in-flight claims and cancellations.
+    /// @dev Intended as the first step of a graceful unwind: governance disables the asset, share-holders bound to it
+    ///      become eligible to migrate their settlement to any other whitelisted asset via the bound-asset release
+    ///      valve in `_requireShareAssetOrDisabled`, and `removeAsset` finalizes the deprecation once outstanding
+    ///      shares and reservations have drained.
+    /// @param asset The whitelisted asset to disable.
+    function disableAsset(address asset) external onlyOwner {
+        _accrueFees(address(0));
+
+        AssetConfig storage config = _requireWhitelistedAsset(asset);
+        config.enabled = false;
+
+        emit AssetDisabled(asset);
     }
 
     /// @notice Sets the performance fee that applies to PPS gains above the high water mark.
@@ -671,12 +688,16 @@ contract Vault is IVault, Ownable2Step, ReentrancyGuard, Pausable {
             shareAssetOf[user] = asset;
             return;
         }
-        if (existingAsset != asset) revert ShareAssetMismatch(user, existingAsset, asset);
+        _requireShareAssetOrDisabled(user, asset);
     }
 
-    function _requireShareAsset(address user, address asset) internal view {
+    /// @notice Enforces the user's bound share asset, with a release valve for users whose bound asset has been
+    ///         disabled by governance. When the bound asset is no longer enabled, the user is permitted to settle
+    ///         against any other whitelisted asset so that disabling an asset never permanently locks share-holders.
+    function _requireShareAssetOrDisabled(address user, address asset) internal view {
         address expectedAsset = shareAssetOf[user];
         if (expectedAsset == address(0)) return;
+        if (!assetConfig[expectedAsset].enabled) return;
         if (expectedAsset != asset) revert ShareAssetMismatch(user, expectedAsset, asset);
     }
 
