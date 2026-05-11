@@ -550,19 +550,6 @@ contract Lending is ILendingPool, Ownable2Step, ReentrancyGuard, Pausable {
 
     function _accrueInterest(address asset) internal {
         Reserve memory current = _getStoredReserve(asset);
-        
-        // Cold-reserve bootstrap: fold any stranded balance into the supply index
-        // so that pre-listing donations don't get permanently locked.
-        if (current.totalScaledSupply != 0 && current.totalScaledSupply <= 1e6) {
-            uint256 bal = IERC20(asset).balanceOf(address(this));
-            uint256 owed = LendingMath.scaledToUnderlying(
-                current.totalScaledSupply, current.supplyIndex, Math.Rounding.Floor
-            );
-            if (owed != 0 && bal > owed * 2) {
-                current.supplyIndex = Math.mulDiv(current.supplyIndex, bal, owed);
-            }
-        }
-
         (Reserve memory updated, uint256 reserveDelta, bool changed) =
             LendingMath.updatedReserve(current, block.timestamp);
         if (!changed) return;
