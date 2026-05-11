@@ -114,6 +114,7 @@ contract Lending is ILendingPool, Ownable2Step, ReentrancyGuard, Pausable {
 
         // rounding: supply mints scaled balance DOWN to favor the protocol.
         uint256 scaledAmount = Math.mulDiv(amount, RAY, reserve.supplyIndex);
+        if (scaledAmount == 0) revert ZeroAmount();
 
         userScaledSupply[onBehalfOf][asset] += scaledAmount;
         reserve.totalScaledSupply = (uint256(reserve.totalScaledSupply) + scaledAmount).toUint128();
